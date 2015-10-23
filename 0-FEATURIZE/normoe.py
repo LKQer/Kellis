@@ -11,10 +11,13 @@ def main():
   resolution = 5000
   alg = 'KR'
   quality = 'MAPQG0'
-  fold = '/broad/compbio/maxwshen/data/hic//5kb_resolution_intrachromosomal/'
-  # chrs = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8']
-  # chrs = ['chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16']
-  chrs = ['chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX']
+  fold = '/broad/compbio/maxwshen/data/hic/GM12878_combined/5kb_resolution_intrachromosomal/'
+  
+  p = int(sys.argv[1])
+  chrs_all = [['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8'], ['chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16'], ['chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX']]
+
+  print p
+  chrs = chrs_all[p]
 
   for chro in chrs:
     print chro, datetime.datetime.now()
@@ -40,8 +43,8 @@ def norm_oe(raw_fn, norm_fn, exp_fn, resolution):
       word = float(line.strip())
       exp[i] = word
 
-  out_path = '/broad/compbio/maxwshen/data/processed_hic/k562.5kb.mapqg0/'
-  out_fn = out_path + raw_fn.split('/')[-1] + 'norm.txt'
+  out_path = '/broad/compbio/maxwshen/data/processed_hic/gm12878.combined.5kb.mapqg0/'
+  out_fn = out_path + raw_fn.split('/')[-1] + 'normed.txt'
   print out_fn
   with open(raw_fn) as f:
     with open(out_fn, 'w') as g:
