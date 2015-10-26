@@ -1,0 +1,1 @@
+Use foreground_background.py to find a set of foreground and background interactions in processed Hi-C data. Its output is used by maketraintest.py, which finds the feature values for all the interactions found, and outputs the data into a format that is friendly as input into machine learning methods. 

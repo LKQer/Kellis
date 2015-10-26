@@ -1,0 +1,1 @@
+Use normoe.py to created Processed-HiC data from raw HiC data from Rao et al., 2014.
