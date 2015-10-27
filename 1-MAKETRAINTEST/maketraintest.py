@@ -11,6 +11,7 @@ from lib import *
 out_path = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/traintest/'
 
 INTXN_LEN = 5000
+WOUTER_STEP = 200
 
 def main():
   SIZE = 1000
@@ -41,31 +42,49 @@ def INTXNS(inp_fn):
   return
 
 def get_motifs():
+  # Writes a tab-delimited file where each row is an interaction
+  # Each column is all the motifs
+  # Each entry is the number of times a motif appears in the intxn
+  #   -> Integer valued
   motif_path = '/broad/compbio/maxwshen/data/wouter/'
-  step = 200
   for mfn in ['motifs_A_L/', 'motifs_M_Z/']:
     curr_fn = motif_path + mfn + 'GENOME_chr' + CHRO + '_binary.txt'
     data = dict()
+    col_labels = ''
     with open(curr_fn) as f:
       for i, line in enumerate(f):
-        data[i * step] = line.strip()
+        if i == 1:
+          col_labels = line.split()
+          num_cols = len(col_labels)
+        if i > 1:
+          data[(i - 2) * WOUTER_STEP] = line.strip()
 
     rows = []
     for itx in INTXNS:
       row = []
       for loci in itx:  
-        bps = range(loci, loci + INTXN_LEN - step, step)
-        for bp in bps:
-          row.append(data[bp])
-      rows.append('\t'.join(row))
+        curr_loci = [0 for s in range(num_cols)]
+        for bp in range(loci, loci + INTXN_LEN, WOUTER_STEP):
+          cd = [int(s) for s in data[bp].split()]
+          for i in range(len(cd)):
+            curr_loci[i] += cd[i]
+        row += [str(s) for s in curr_loci]
+      rows.append(row)
+
+    labels = []
+    for i in range(2):
+      for l in col_labels:
+        print l
+        labels.append(l + '_' + str(i))
 
     ensure_dir_exists(out_path + mfn)
     motif_out_fn = out_path + mfn + CELLTYPE + '.' + CHRO + '.txt'
     print 'Writing to', motif_out_fn
     with open(motif_out_fn, 'w') as f:
+      f.write('\t'.join(labels) + '\n')
       for row in rows:
         # print len(row)
-        f.write(row + '\n')
+        f.write('\t'.join(row) + '\n')
 
   return
 
