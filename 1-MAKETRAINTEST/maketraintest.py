@@ -8,10 +8,13 @@ from collections import defaultdict
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
 from lib import *
 
-out_path = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/traintest/'
+OUT_PATH = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/traintest/'
 
 INTXN_LEN = 5000
 WOUTER_STEP = 200
+NUM_CHROMHMM_STATES = 18            # VALID:  15, 18 or 25
+
+_E = {'imr90': 'E017', 'gm12878': 'E116', 'k562': 'E123'}
 
 def main():
   SIZE = 1000
@@ -23,29 +26,45 @@ def main():
   INTXNS(inp_fn)
   print 'Processing', CELLTYPE, CHRO
 
-  get_motifs()
+  # get_motifs()
+  get_chromHMM()
 
   return
 
 def INTXNS(inp_fn):
+  # Grabs interactions from the output of fgbg.py.
+  # Format = Locus1 Locus2 IntxnFraction
   global INTXNS
   global CELLTYPE
   global CHRO
+  global E_CELLTYPE
 
   INTXNS = []
   with open(inp_fn) as f:
     for i, line in enumerate(f):
       if i == 0:
         [_, CELLTYPE, CHRO, limit] = line.split()
+        E_CELLTYPE = _E[CELLTYPE]
       if i > 0:
         INTXNS.append([int(s) for s in line.split()[:2]])
   return
 
+def write_data_to_file(out_fn, labels, rows):
+  # Expects labels to be a list of strings
+  # Expects rows to be a list of strings
+  with open(out_fn, 'w') as f:
+    f.write('\t'.join(labels) + '\n')
+    for row in rows:
+      # print len(row)
+      f.write('\t'.join(row) + '\n')
+  return
+
 def get_motifs():
   # Writes a tab-delimited file where each row is an interaction
-  # Each column is all the motifs
-  # Each entry is the number of times a motif appears in the intxn
+  # Each column is all the motifs, times 2 (1 per locus)
+  # Each row is total motif appearances in that 5kb locus
   #   -> Integer valued
+  # First half of row corresponds to first loci in intxn, second to second
   motif_path = '/broad/compbio/maxwshen/data/wouter/'
   for mfn in ['motifs_A_L/', 'motifs_M_Z/']:
     curr_fn = motif_path + mfn + 'GENOME_chr' + CHRO + '_binary.txt'
@@ -77,14 +96,53 @@ def get_motifs():
         print l
         labels.append(l + '_' + str(i))
 
-    ensure_dir_exists(out_path + mfn)
-    motif_out_fn = out_path + mfn + CELLTYPE + '.' + CHRO + '.txt'
+    ensure_dir_exists(OUT_PATH + mfn)
+    motif_out_fn = OUT_PATH + mfn + CELLTYPE + '.' + CHRO + '.txt'
     print 'Writing to', motif_out_fn
-    with open(motif_out_fn, 'w') as f:
-      f.write('\t'.join(labels) + '\n')
-      for row in rows:
-        # print len(row)
-        f.write('\t'.join(row) + '\n')
+    write_data_to_file(motif_out_fn)
+
+  return
+
+def get_chromHMM():
+  # Writes a tab-delimited file where each row is an interaction
+  # Each column is all the ChromHMM states, times 2 (1 per locus)
+  # Each row is sum of ChromHMM states appearances in that 5kb locus
+  #   -> Integer valued
+  # First half of row corresponds to first loci in intxn, second to second
+  ch_path = '/broad/compbio/maxwshen/data/wouter/ChromHMM_data/'
+  if NUM_CHROMHMM_STATES not in [15, 18, 25]:
+    print 'ERROR: Invalid NUM_CHROMHMM_STATES', NUM_CHROMHMM_STATES
+  if NUM_CHROMHMM_STATES == 25:
+    curr_fn = ch_path + 'imputed/' + E_CELLTYPE + '_25_imputed12marks_chr' + CHRO + '_statebyline.txt'
+  if NUM_CHROMHMM_STATES == 15:
+    curr_fn = ch_path + 'observed/' + E_CELLTYPE + '_15_coreMarks_chr' + CHRO + '_statebyline.txt'
+  if NUM_CHROMHMM_STATES == 18:
+    curr_fn = ch_path + 'observed_aux/' + E_CELLTYPE + '_18_core_K27ac_chr' + CHRO + '_statebyline.txt'
+
+  data = dict()
+  with open(curr_fn) as f:
+    for i, line in enumerate(f):
+      if i > 2:
+        data[(i - 3) * WOUTER_STEP] = line.strip()
+
+  rows = []
+  for itx in INTXNS:
+    row = [] 
+    for loci in itx:
+      curr = [0 for i in range(NUM_CHROMHMM_STATES)]
+      for bp in range(loci, loci + INTXN_LEN, WOUTER_STEP):
+        curr[int(data[bp]) - 1] += 1
+      row += [str(s) for s in curr]
+    rows.append(row)
+
+  labels = ['ChromHMM ' + str(i + 1) + '_0' for i in range(NUM_CHROMHMM_STATES)] + ['ChromHMM ' + str(i + 1) + '_1' for i in range(NUM_CHROMHMM_STATES)]
+
+  # Write to output
+  out_fold = 'ChromHMM.imputed.' + str(NUM_CHROMHMM_STATES)
+  ensure_dir_exists(OUT_PATH + out_fold)
+  ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.txt'
+  print 'Writing to', ch_out_fn
+  write_data_to_file(ch_out_fn)
 
   return
 
