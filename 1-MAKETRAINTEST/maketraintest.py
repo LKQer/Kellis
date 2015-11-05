@@ -14,7 +14,7 @@ INTXN_LEN = 5000
 WOUTER_STEP = 200
 NUM_CHROMHMM_STATES = 18            # VALID:  15, 18 or 25
 
-_E = {'imr90': 'E017', 'gm12878': 'E116', 'k562': 'E123'}
+_E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 
 def main():
   SIZE = 1000
@@ -27,7 +27,8 @@ def main():
   print 'Processing', CELLTYPE, CHRO
 
   # get_motifs()
-  get_chromHMM()
+  # get_chromHMM()
+  get_TFs()
 
   return
 
@@ -44,6 +45,7 @@ def INTXNS(inp_fn):
     for i, line in enumerate(f):
       if i == 0:
         [_, CELLTYPE, CHRO, limit] = line.split()
+        CELLTYPE = CELLTYPE.upper()
         E_CELLTYPE = _E[CELLTYPE]
       if i > 0:
         INTXNS.append([int(s) for s in line.split()[:2]])
@@ -65,9 +67,9 @@ def get_motifs():
   # Each row is total motif appearances in that 5kb locus
   #   -> Integer valued
   # First half of row corresponds to first loci in intxn, second to second
-  motif_path = '/broad/compbio/maxwshen/data/wouter/'
+  base_fold = '/broad/compbio/maxwshen/data/wouter/'
   for mfn in ['motifs_A_L/', 'motifs_M_Z/']:
-    curr_fn = motif_path + mfn + 'GENOME_chr' + CHRO + '_binary.txt'
+    curr_fn = base_fold + mfn + 'GENOME_chr' + CHRO + '_binary.txt'
     data = dict()
     col_labels = ''
     with open(curr_fn) as f:
@@ -93,13 +95,12 @@ def get_motifs():
     labels = []
     for i in range(2):
       for l in col_labels:
-        print l
         labels.append(l + '_' + str(i))
 
     ensure_dir_exists(OUT_PATH + mfn)
     motif_out_fn = OUT_PATH + mfn + CELLTYPE + '.' + CHRO + '.txt'
     print 'Writing to', motif_out_fn
-    write_data_to_file(motif_out_fn)
+    write_data_to_file(motif_out_fn, labels, rows)
 
   return
 
@@ -109,15 +110,15 @@ def get_chromHMM():
   # Each row is sum of ChromHMM states appearances in that 5kb locus
   #   -> Integer valued
   # First half of row corresponds to first loci in intxn, second to second
-  ch_path = '/broad/compbio/maxwshen/data/wouter/ChromHMM_data/'
+  base_path = '/broad/compbio/maxwshen/data/wouter/ChromHMM_data/'
   if NUM_CHROMHMM_STATES not in [15, 18, 25]:
     print 'ERROR: Invalid NUM_CHROMHMM_STATES', NUM_CHROMHMM_STATES
   if NUM_CHROMHMM_STATES == 25:
-    curr_fn = ch_path + 'imputed/' + E_CELLTYPE + '_25_imputed12marks_chr' + CHRO + '_statebyline.txt'
+    curr_fn = base_path + 'imputed/' + E_CELLTYPE + '_25_imputed12marks_chr' + CHRO + '_statebyline.txt'
   if NUM_CHROMHMM_STATES == 15:
-    curr_fn = ch_path + 'observed/' + E_CELLTYPE + '_15_coreMarks_chr' + CHRO + '_statebyline.txt'
+    curr_fn = base_path + 'observed/' + E_CELLTYPE + '_15_coreMarks_chr' + CHRO + '_statebyline.txt'
   if NUM_CHROMHMM_STATES == 18:
-    curr_fn = ch_path + 'observed_aux/' + E_CELLTYPE + '_18_core_K27ac_chr' + CHRO + '_statebyline.txt'
+    curr_fn = base_path + 'observed_aux/' + E_CELLTYPE + '_18_core_K27ac_chr' + CHRO + '_statebyline.txt'
 
   data = dict()
   with open(curr_fn) as f:
@@ -142,7 +143,59 @@ def get_chromHMM():
   ensure_dir_exists(OUT_PATH + out_fold)
   ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.txt'
   print 'Writing to', ch_out_fn
-  write_data_to_file(ch_out_fn)
+  write_data_to_file(ch_out_fn, labels, rows)
+
+  return
+
+def get_TFs():
+  # Writes a tab-delimited file where each row is an interaction
+  # Each column is all the TFs present in the celltype, times 2 (1 per locus)
+  # Each row is sum of TF appearances in that 5kb locus
+  #   -> Integer valued
+  # First half of row corresponds to first loci in intxn, second to second
+  print '  TFs...'
+  base_path = '/broad/compbio/maxwshen/data/wouter/TFs/'
+  curr_fn = base_path + CELLTYPE + '/' + CELLTYPE + '_chr' + CHRO + '_binary.txt'
+
+  data = dict()
+  labels = []
+  with open(curr_fn) as f:
+    for i, line in enumerate(f):
+      if i == 1:
+        labels = line.split()
+      if i > 1:
+        data[(i - 2) * WOUTER_STEP] = line.replace('2', '')
+
+  example_line = line.split()
+  new_labels = []
+  for i in range(len(example_line)):
+    if example_line[i] != '2':
+      new_labels.append(labels[i])
+  labels = new_labels
+
+  rows = []
+  for itx in INTXNS:
+    row = []
+    for loci in itx:
+      curr = [0 for i in range(len(labels))]
+      for bp in range(loci, loci + INTXN_LEN, WOUTER_STEP):
+        cd = [int(s) for s in data[bp].split()]
+        for i in range(len(cd)):
+          curr[i] += cd[i]
+      row += [str(s) for s in curr]
+    rows.append(row)
+
+  new_labels = []
+  for i in range(2):
+    for l in labels:
+      new_labels.append(l + '_' + str(i))
+  labels = new_labels
+
+  out_fold = 'TFs'
+  ensure_dir_exists(OUT_PATH + out_fold)
+  ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.txt'
+  print 'Writing to', ch_out_fn
+  write_data_to_file(ch_out_fn, labels, rows)
 
   return
 
