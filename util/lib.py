@@ -16,6 +16,13 @@ class DataPath():
   def __repr__(self):
     return 'Celltype: ' + self.celltype, '\nChr. ' + str(chro) + '\nPath: ' + path
 
+class NarrowPeak():
+  def __init__(self, input_str):
+    self.start = int(input_str.split()[1])
+    self.end = int(input_str.split()[2])
+    self.length = self.end - self.start
+    self.signal = float(input_str.split()[6])
+
 
 # METHODS: COMPUTATIONAL BIOLOGY
 def read_fasta(fasta_fn):

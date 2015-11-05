@@ -28,7 +28,8 @@ def main():
 
   # get_motifs()
   # get_chromHMM()
-  get_TFs()
+  # get_TFs()
+  get_narrowPeak('DNase.macs2')
 
   return
 
@@ -67,6 +68,7 @@ def get_motifs():
   # Each row is total motif appearances in that 5kb locus
   #   -> Integer valued
   # First half of row corresponds to first loci in intxn, second to second
+  print '  DNA Motifs...'
   base_fold = '/broad/compbio/maxwshen/data/wouter/'
   for mfn in ['motifs_A_L/', 'motifs_M_Z/']:
     curr_fn = base_fold + mfn + 'GENOME_chr' + CHRO + '_binary.txt'
@@ -110,6 +112,7 @@ def get_chromHMM():
   # Each row is sum of ChromHMM states appearances in that 5kb locus
   #   -> Integer valued
   # First half of row corresponds to first loci in intxn, second to second
+  print '  ChromHMM...'
   base_path = '/broad/compbio/maxwshen/data/wouter/ChromHMM_data/'
   if NUM_CHROMHMM_STATES not in [15, 18, 25]:
     print 'ERROR: Invalid NUM_CHROMHMM_STATES', NUM_CHROMHMM_STATES
@@ -197,6 +200,40 @@ def get_TFs():
   print 'Writing to', ch_out_fn
   write_data_to_file(ch_out_fn, labels, rows)
 
+  return
+
+def get_narrowPeak(query):
+  # For DNase, query should be 'DNase.macs2'
+  # For each query, produces an Nx2 matrix where N = number of intxns
+  # Values are floats, sum of signal values over 5kb region where at 
+  # least 1bp of the peak overlaps
+  print '  ' + query + '...'
+  base_path = '/broad/compbio/maxwshen/data/narrowPeak/'
+  curr_fn = base_path + E_CELLTYPE + '-' + query + '.narrowPeak'
+
+  data = []
+  with open(curr_fn) as f:
+    for i, line in enumerate(f):
+      if line.split()[0] == 'chr' + CHRO:
+        data.append(NarrowPeak(line))
+
+  rows = []
+  for itx in INTXNS:
+    row = []
+    for loci in itx:
+      curr = 0
+      for peak in data:
+        if peak.start <= loci <= peak.end or peak.start <= loci + INTXN_LEN <= peak.end:
+          curr += peak.signal
+      row.append(str(curr))
+    rows.append(row)
+
+  labels = [query + '_0', query + '_1']
+  out_fold = 'NarrowPeak'
+  ensure_dir_exists(OUT_PATH + out_fold)
+  ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.' + query + '.txt'
+  print 'Writing to', ch_out_fn
+  write_data_to_file(ch_out_fn, labels, rows)
   return
 
 if __name__ == '__main__':
