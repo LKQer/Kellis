@@ -1,4 +1,14 @@
-# Generates training and testing data
+# Generates featurized data
+# Common data format:
+# 
+# Row 1: Tab-separated columns
+# ROw 2...n+1: n separate rows, with tab-separated value
+#
+# Output folder: /broad/compbio/maxwshen/data/1-MAKETRAINTEST/...
+# 
+# Combine into a single data matrix text file using combine.py
+# 
+# 
 # Includes lots of magic numbers reflecting internal organization of featurized data
 # Max Shen
 
@@ -13,12 +23,14 @@ OUT_PATH = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/traintest/'
 INTXN_LEN = 5000
 WOUTER_STEP = 200
 NUM_CHROMHMM_STATES = 18            # VALID:  15, 18 or 25
+CURR_BED_FN = ''
 
 _E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 
 def main():
   SIZE = 1000
   FRAC = .80
+  ensure_dir_exists(OUT_PATH + 'temp/')
 
   inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/'
   inp_fn = inp_fold + 'sample.imr90.1.txt'
@@ -29,7 +41,10 @@ def main():
   # get_motifs()
   # get_chromHMM()
   # get_TFs()
-  get_narrowPeak('DNase.macs2')
+  # imr90_narrowpeaks = ['DNase.macs2', 'H2A.Z', 'H2AK5ac', 'H2AK9ac', 'H2BK5ac', 'H2BK12ac', 'H2BK15ac', 'H2BK20ac', 'H2BK120ac', 'H3K4ac', 'H3K4me1', 'H3K4me2', 'H3K4me3', 'H3K9ac', 'H3K9me1', 'H3K9me3', 'H3K14ac', 'H3K18ac', 'H3K23ac', 'H3K27ac', 'H3K27me3', 'H3K36me3', 'H3K56ac', 'H3K79me1', 'H3K79me2', 'H4K5ac', 'H4K8ac', 'H4K20me1', 'H4K91ac']
+  # for np in imr90_narrowpeaks:
+    # get_narrowPeak(np)
+  get_wgbs()
 
   return
 
@@ -101,7 +116,7 @@ def get_motifs():
 
     ensure_dir_exists(OUT_PATH + mfn)
     motif_out_fn = OUT_PATH + mfn + CELLTYPE + '.' + CHRO + '.txt'
-    print 'Writing to', motif_out_fn
+    # print 'Writing to', motif_out_fn
     write_data_to_file(motif_out_fn, labels, rows)
 
   return
@@ -139,13 +154,13 @@ def get_chromHMM():
       row += [str(s) for s in curr]
     rows.append(row)
 
-  labels = ['ChromHMM ' + str(i + 1) + '_0' for i in range(NUM_CHROMHMM_STATES)] + ['ChromHMM ' + str(i + 1) + '_1' for i in range(NUM_CHROMHMM_STATES)]
+  labels = ['ChromHMM' + str(i + 1) + '_0' for i in range(NUM_CHROMHMM_STATES)] + ['ChromHMM' + str(i + 1) + '_1' for i in range(NUM_CHROMHMM_STATES)]
 
   # Write to output
   out_fold = 'ChromHMM.imputed.' + str(NUM_CHROMHMM_STATES)
   ensure_dir_exists(OUT_PATH + out_fold)
   ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.txt'
-  print 'Writing to', ch_out_fn
+  # print 'Writing to', ch_out_fn
   write_data_to_file(ch_out_fn, labels, rows)
 
   return
@@ -197,7 +212,7 @@ def get_TFs():
   out_fold = 'TFs'
   ensure_dir_exists(OUT_PATH + out_fold)
   ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.txt'
-  print 'Writing to', ch_out_fn
+  # print 'Writing to', ch_out_fn
   write_data_to_file(ch_out_fn, labels, rows)
 
   return
@@ -229,11 +244,63 @@ def get_narrowPeak(query):
     rows.append(row)
 
   labels = [query + '_0', query + '_1']
-  out_fold = 'NarrowPeak'
-  ensure_dir_exists(OUT_PATH + out_fold)
-  ch_out_fn = OUT_PATH + out_fold + '/' + CELLTYPE + '.' + CHRO + '.' + query + '.txt'
-  print 'Writing to', ch_out_fn
+  ensure_dir_exists(OUT_PATH + 'NarrowPeak')
+  ch_out_fn = OUT_PATH + 'NarrowPeak/' + CELLTYPE + '.' + CHRO + '.' + query + '.txt'
+  # print 'Writing to', ch_out_fn
   write_data_to_file(ch_out_fn, labels, rows)
+  return
+
+def write_bed():
+  # Called from get_wgbs
+  # Writes interactions into a bed file
+  # BED format:
+  # chrA startpos endpos uniquename
+  global CURR_BED_FN
+  CURR_BED_FN = OUT_PATH + 'temp/temp.bed'
+  with open(CURR_BED_FN, 'w') as f:
+    for i in range(len(INTXNS)):
+      itx = INTXNS[i]
+      for j in range(len(itx)):
+        loci = itx[j]
+        f.write('chr' + CHRO + '\t' + str(loci) + '\t' + str(loci + INTXN_LEN) + '\titxn' + str(i) + '-' + str(j) + '\n')
+  return
+
+def get_wgbs():
+  # Calls bwtool extract on a bed file made from write_bed()
+  # Appends data to the bed file. Format:
+  # ChrA startpos endpos uniquename num_datapts data_pt1 data_pt2 ... 
+  # This is written to the 'pre' file, which is then averaged into 'avg' file
+  print '  wgbs...'
+  write_bed()
+  base_path = '/broad/compbio/maxwshen/data/wgbs/'
+  curr_fn = base_path + E_CELLTYPE + '_WGBS_FractionalMethylation.bigwig'
+  ensure_dir_exists(OUT_PATH + 'wgbs')
+  ch_out_fn = OUT_PATH + 'wgbs/' + CELLTYPE + '.' + CHRO + '.pre.txt'
+
+  status = commands.getstatusoutput('bwtool extract bed ' + CURR_BED_FN + ' ' + curr_fn + ' ' + ch_out_fn)
+  bigwig_avg(ch_out_fn)
+
+  # bwtool extract output files can be very large, so remove them 
+  status = commands.getstatusoutput('rm -rf ' + ch_out_fn)
+  return
+
+def bigwig_avg(pre_fn):
+  # Called from get_wgbs
+  # Takes a 'pre' file from bwtool extract and averages the values, setting NA = 0
+  # Output value is average fractional methylation over the intxn loci
+  out_fn = '.'.join(pre_fn.split('.')[:-2]) + '.txt'
+  with open(pre_fn) as f:
+    with open(out_fn, 'w') as g:
+      g.write('wgbs_0\twgbs_1')
+      row = []
+      for i, line in enumerate(f):
+        if i % 2 == 0:
+          g.write('\t'.join(row) + '\n')
+          row = []
+        data = line.split()[5].replace('NA', '0')
+        data = [float(s) for s in data.split(',')]
+        row.append(str(np.mean(data))) 
+      g.write('\t'.join(row) + '\n')
   return
 
 if __name__ == '__main__':

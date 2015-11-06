@@ -1,1 +1,6 @@
-Use foreground_background.py to find a set of foreground and background interactions in processed Hi-C data. Its output is used by maketraintest.py, which finds the feature values for all the interactions found, and outputs the data into a format that is friendly as input into machine learning methods. 
+Use foreground_background.py to find a set of foreground and background interactions in processed Hi-C data. Its output is used by maketraintest.py, which finds the feature values for all the interactions found, and outputs the data into the following format in /broad/compbio/maxwshen/data/1-MAKETRAINTEST/...
+
+Row 1: Tab-separated column names
+Row 2 .. n+1: n rows for n interactions, with tab-separated values
+
+The file combine.py combines the output of maketraintest.py into a single data matrix text file.
