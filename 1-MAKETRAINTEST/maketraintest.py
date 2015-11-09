@@ -33,7 +33,7 @@ def main():
   ensure_dir_exists(OUT_PATH + 'temp/')
 
   inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/'
-  inp_fn = inp_fold + 'sample.imr90.1.txt'
+  inp_fn = inp_fold + 'IMR90.1.txt'
 
   INTXNS(inp_fn)
   print 'Processing', CELLTYPE, CHRO

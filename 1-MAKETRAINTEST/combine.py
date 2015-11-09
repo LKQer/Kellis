@@ -8,40 +8,87 @@ sys.path.append('/broad/compbio/maxwshen/Kellis/util')
 from lib import *
 
 def main():
+  global MTT_FOLD
+  global INP_PATH
+  global OUT_FN
+  global OUT_Y_FN
+  global ADD_LABELS
 
   name = sys.argv[1]
   cell_types = ['IMR90']
   chros = ['1']
 
   common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
-  mtt_fold = common_fold + 'traintest/'
+  MTT_FOLD = common_fold + 'traintest/'
   out_path = common_fold + 'combined/'
+  INP_PATH = common_fold + 'fgbg/'
   ensure_dir_exists(out_path)
 
   # Ensure out file exists and is empty for appending
-  out_fn = out_path + name + '.txt'
-  with open(out_fn, 'w') as f:
-    pass
+  OUT_FN = out_path + name + '.txt'
+  OUT_Y_FN = out_path + name + '.y.txt'
+  prepare_OUT_FN(OUT_FN)
+  prepare_OUT_FN(OUT_Y_FN)
+  ADD_LABELS = True
 
   for cell_type in cell_types:
     for chro in chros:
       print cell_type, chro
+      num_f = add_features(cell_type, chro)
+      num_y = add_y(cell_type, chro)
+      ADD_LABELS = False
+      if num_f != num_y:
+        print 'Error: Number of rows in features and output do not agree.'
+        print 'Num of rows in features:', num_f, '\t Num y:', num_y
 
-      data = []   # List of columns
-      for subdir in [mtt_fold + s + '/' for s in os.listdir(mtt_fold) if os.path.isdir(mtt_fold + s)]:
-        for seek_fn in os.listdir(subdir):
-          if fnmatch.fnmatch(seek_fn, cell_type + '.' + chro + '*.txt'):
-            data = data_add(data, subdir + seek_fn)
-
-      print 'Found', len(data), 'features/columns'
-      data_rows = []
-      for i in range(len(data[0])):
-        data_rows.append([data[j][i] for j in range(len(data))])
-      with open(out_fn, 'a') as f:
-        for row in data_rows:
-          f.write('\t'.join(row) + '\n')
   return
 
+def add_y(cell_type, chro):
+  curr_fn = INP_PATH + cell_type + '.' + chro + '.txt'
+  ys = []
+  with open(curr_fn) as f:
+    for i, line in enumerate(f):
+      if i == 0:
+        ys.append('Labels')
+        if line[0] != '>':
+          print 'Error: Bad fgbg file format'
+      if i > 0:
+        ys.append(line.split()[2])
+
+  if not ADD_LABELS:
+    ys = ys[1:]
+
+  with open(OUT_Y_FN, 'a') as f:
+    for s in ys:
+      f.write(s + '\n')
+
+  return len(ys)
+
+def prepare_OUT_FN(OUT_FN):
+  with open(OUT_FN, 'w') as f:
+    pass
+  return
+
+def add_features(cell_type, chro):
+  # Handle features
+  data = []   # List of columns
+  for subdir in [MTT_FOLD + s + '/' for s in os.listdir(MTT_FOLD) if os.path.isdir(MTT_FOLD + s)]:
+    for seek_fn in os.listdir(subdir):
+      if fnmatch.fnmatch(seek_fn, cell_type + '.' + chro + '*.txt'):
+        data = data_add(data, subdir + seek_fn)
+
+  print 'Found', len(data), 'features/columns'
+  data_rows = []
+  for i in range(len(data[0])):
+    data_rows.append([data[j][i] for j in range(len(data))])
+
+  if not ADD_LABELS:
+    data_rows = data_rows[1:]
+
+  with open(OUT_FN, 'a') as f:
+    for row in data_rows:
+      f.write('\t'.join(row) + '\n')
+  return len(data_rows)
 
 def data_add(data, seek_fn):
   # print seek_fn

@@ -17,7 +17,7 @@ def main():
   _NUM = 500
   limit = 10000
   
-  celltypes = ['imr90']
+  celltypes = ['IMR90']
   chrs = [1]
   for ct in celltypes:
     for chro in chrs:
