@@ -20,13 +20,13 @@ def main():
 
   common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
   MTT_FOLD = common_fold + 'traintest/'
-  out_path = common_fold + 'combined/'
+  out_path = common_fold + 'combined/' + name + '/'
   INP_PATH = common_fold + 'fgbg/'
   ensure_dir_exists(out_path)
 
   # Ensure out file exists and is empty for appending
-  OUT_FN = out_path + name + '.txt'
-  OUT_Y_FN = out_path + name + '.y.txt'
+  OUT_FN = out_path + 'data.txt'
+  OUT_Y_FN = out_path + '.y.txt'
   prepare_OUT_FN(OUT_FN)
   prepare_OUT_FN(OUT_Y_FN)
   ADD_LABELS = True

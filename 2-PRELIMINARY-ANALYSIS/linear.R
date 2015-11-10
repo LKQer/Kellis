@@ -1,8 +1,8 @@
 # Gets 72% test accuracy on toy dataset with 1000 interactions, 500 strong/500 weak
 # Simple linear regression model
 
-data <- read.table('/broad/compbio/maxwshen/data/1-MAKETRAINTEST/combined/toy.txt', header = TRUE)
-y <- read.table('/broad/compbio/maxwshen/data/1-MAKETRAINTEST/combined/toy.y.txt', header = TRUE)
+data <- read.table('/broad/compbio/maxwshen/data/1-MAKETRAINTEST/combined/toy.imr90.chr1.1k.txt', header = TRUE)
+y <- read.table('/broad/compbio/maxwshen/data/1-MAKETRAINTEST/combined/toy.imr90.chr1.1k.y.txt', header = TRUE)
 
 data <- cbind(data, y)
 
@@ -19,3 +19,7 @@ p <- predict(model, test)
 acc <- sum((p > 1) == (test["Labels"] > 1))
 total <- dim(test)[1]
 cat("Test Accuracy:", acc / total, '\n')
+
+
+# Test rank of matrix
+# qr(matrix)$rank

@@ -9,57 +9,58 @@ from collections import defaultdict
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
 from lib import *
 
-out_path = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/'
+OUT_PATH = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/'
 
 def main():
   global _NUM
-  global limit
-  _NUM = 500
-  limit = 10000
+  global LIMIT
+  global OUT_PATH
+  _NUM = 1000
+  LIMIT = float('inf')
   
-  celltypes = ['IMR90']
-  chrs = [1]
+  # Using NATO phonetic alphabet
+  name = sys.argv[1]
+  OUT_PATH = OUT_PATH + name + '/'
+
+  # celltypes = ['IMR90', 'GM12878', 'K562']
+  celltypes = ['K562']
+  chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', \
+          '12', '13', '14', '15', '16', '17', '18', '19', '20', \
+          '21', '22', 'X']
+
   for ct in celltypes:
     for chro in chrs:
+      print ct, chro
       datapath = DataPath(ct, chro)
-      find_fgbg(datapath)
+      find_fgbg(datapath, name)
 
   return
 
-def find_fgbg(datapath):
-  high = dict()
-  low = dict()
+def find_fgbg(datapath, name):
+  intxns = dict()
   with open(datapath.path) as f:
     for i, line in enumerate(f):
+      pass
       if i % 50000 == 0:
         print i, datetime.datetime.now()
-      if i > limit:
+      if i > LIMIT:
         break
 
-      intxn = ' '.join(line.split()[:2])
-      num = float(line.split()[2])
-      if len(high) < _NUM:
-        high[intxn] = num
-      else:
-        if min(high.values()) < num:
-          del high[min(high.iteritems(), key=operator.itemgetter(1))[0]]
-          high[intxn] = num
-      if len(low) < _NUM:
-        low[intxn] = num
-      else:
-        if max(low.values()) > num:
-          del low[max(low.iteritems(), key=operator.itemgetter(1))[0]]
-          low[intxn] = num
+      words = line.split()
+      intxns[' '.join(words[:2])] = float(words[2])
 
+  ordered_keys = sorted(intxns, key = intxns.get)
+  high = ordered_keys[-_NUM:]
+  low = ordered_keys[:_NUM]
 
-  ensure_dir_exists(out_path)
-  out_fn = out_path + datapath.celltype + '.' + datapath.chro + '.txt'
+  ensure_dir_exists(OUT_PATH)
+  out_fn = OUT_PATH + datapath.celltype + '.' + datapath.chro + '.txt'
   with open(out_fn, 'w') as f:
-    f.write('> ' + ' '.join([datapath.celltype, datapath.chro, str(limit)]) + '\n')
+    f.write('> ' + ' '.join([datapath.celltype, datapath.chro, str(LIMIT)]) + '\n')
     for key in high:
-      f.write(key + '\t' + str(high[key]) + '\n')
+      f.write(key + '\t' + str(intxns[key]) + '\n')
     for key in low:
-      f.write(key + '\t' + str(low[key]) + '\n')
+      f.write(key + '\t' + str(intxns[key]) + '\n')
   print 'Written to', out_fn
   return
 

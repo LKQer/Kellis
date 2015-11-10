@@ -8,7 +8,6 @@
 # 
 # Combine into a single data matrix text file using combine.py
 # 
-# 
 # Includes lots of magic numbers reflecting internal organization of featurized data
 # Max Shen
 
@@ -32,7 +31,11 @@ def main():
   FRAC = .80
   ensure_dir_exists(OUT_PATH + 'temp/')
 
-  inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/'
+  name = sys.argv[1]
+  inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/' + name + '/'
+  OUT_PATH = OUT_PATH + name + '/'
+
+  # EDIT 
   inp_fn = inp_fold + 'IMR90.1.txt'
 
   INTXNS(inp_fn)
