@@ -18,7 +18,7 @@ def main():
   cell_types = ['IMR90']
   chros = ['1']
 
-  common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
+  common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/' + name
   MTT_FOLD = common_fold + 'traintest/'
   out_path = common_fold + 'combined/' + name + '/'
   INP_PATH = common_fold + 'fgbg/'

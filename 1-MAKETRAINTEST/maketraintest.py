@@ -27,27 +27,26 @@ CURR_BED_FN = ''
 _E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 
 def main():
-  SIZE = 1000
-  FRAC = .80
-  ensure_dir_exists(OUT_PATH + 'temp/')
-
+  global OUT_PATH
   name = sys.argv[1]
   inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/' + name + '/'
   OUT_PATH = OUT_PATH + name + '/'
 
+  ensure_dir_exists(OUT_PATH + 'temp/')
+
   # EDIT 
-  inp_fn = inp_fold + 'IMR90.1.txt'
+  for inp_fn in os.listdir(inp_fold):
+    INTXNS(inp_fold + inp_fn)
+    print 'Processing', CELLTYPE, CHRO
 
-  INTXNS(inp_fn)
-  print 'Processing', CELLTYPE, CHRO
-
-  # get_motifs()
-  # get_chromHMM()
-  # get_TFs()
-  # imr90_narrowpeaks = ['DNase.macs2', 'H2A.Z', 'H2AK5ac', 'H2AK9ac', 'H2BK5ac', 'H2BK12ac', 'H2BK15ac', 'H2BK20ac', 'H2BK120ac', 'H3K4ac', 'H3K4me1', 'H3K4me2', 'H3K4me3', 'H3K9ac', 'H3K9me1', 'H3K9me3', 'H3K14ac', 'H3K18ac', 'H3K23ac', 'H3K27ac', 'H3K27me3', 'H3K36me3', 'H3K56ac', 'H3K79me1', 'H3K79me2', 'H4K5ac', 'H4K8ac', 'H4K20me1', 'H4K91ac']
-  # for np in imr90_narrowpeaks:
-    # get_narrowPeak(np)
-  get_wgbs()
+    get_motifs()
+    get_chromHMM()
+    get_TFs()
+    get_all_narrowpeak()
+    get_wgbs()
+    get_gc()
+    get_entropy()
+    get_basic()
 
   return
 
@@ -78,6 +77,26 @@ def write_data_to_file(out_fn, labels, rows):
     for row in rows:
       # print len(row)
       f.write('\t'.join(row) + '\n')
+  return
+
+def get_basic():
+  # Stores basic information into the matrix
+  # Genomic distance of interaction, cell type, chromosome
+  print '  Basic...'
+  rows = []
+  for itx in INTXNS:
+    rows.append([abs(itx[0] - itx[1])])
+
+  for row in rows:
+    row.append(CELLTYPE)
+    row.append(CHRO)
+  rows = ['\t'.join(row) for row in rows]
+
+  labels = ['basic_genomic_dist', 'basic_celltype', 'basic_chromosome']
+
+  ensure_dir_exists(OUT_PATH + 'basic')
+  out_fn = OUT_PATH + 'basic/' + CELLTYPE + '.' + CHRO + '.txt'
+  write_data_to_file(out_fn, labels, rows)
   return
 
 def get_motifs():
@@ -220,6 +239,13 @@ def get_TFs():
 
   return
 
+def get_all_narrowpeak():
+  # Called from main
+  for fn in os.listdir('/broad/compbio/maxwshen/data/narrowPeak/'):
+    if fnmatch.fnmatch(fn, E_CELLTYPE + '*'):
+      get_narrowPeak(fn)
+  return
+
 def get_narrowPeak(query):
   # For DNase, query should be 'DNase.macs2'
   # For each query, produces an Nx2 matrix where N = number of intxns
@@ -227,7 +253,7 @@ def get_narrowPeak(query):
   # least 1bp of the peak overlaps
   print '  ' + query + '...'
   base_path = '/broad/compbio/maxwshen/data/narrowPeak/'
-  curr_fn = base_path + E_CELLTYPE + '-' + query + '.narrowPeak'
+  curr_fn = base_path + query
 
   data = []
   with open(curr_fn) as f:
@@ -305,6 +331,98 @@ def bigwig_avg(pre_fn):
         row.append(str(np.mean(data))) 
       g.write('\t'.join(row) + '\n')
   return
+
+
+def get_gc():
+    print '  GC Content...'
+    base_path = '/broad/compbio/maxwshen/data/hg19/'        
+    #base_path = './'
+    filename = base_path + 'chr' + CHRO + '.fa'
+    seq = readSeq(filename)
+
+    rows = []    
+    for itx in INTXNS:
+        row = []
+        for loci in itx:
+            gcnum = 0
+        
+            start  = loci
+            stop = loci + INTXN_LEN
+        
+            for i in xrange(start,stop):
+                letter = seq[i]
+            
+                if ((letter.upper() == 'G') | (letter.upper() == 'C')):
+                    gcnum = gcnum + 1                
+        
+            gc_content = float(gcnum)/(stop-start)        
+            row.append(str(gc_content))
+        rows.append(row)
+    
+    # write to file    
+    out_fn = OUT_PATH + 'gc/' + CELLTYPE + '.' + CHRO + '.txt'
+    query = 'gc'
+    labels = [query + '_0', query + '_1']
+    write_data_to_file(out_fn, labels, rows)
+    
+    return
+
+def get_entropy():
+    print '  Entropy...'
+    base_path = '/broad/compbio/maxwshen/data/hg19/'        
+    #base_path = './'
+    filename = base_path + 'chr' + CHRO + '.fa'
+    seq = readSeq(filename)
+    
+    alphabet = ['A','C','G','T']
+    # to avoid log 0
+    eps = sys.float_info.epsilon
+    
+    rows = []    
+    
+    for itx in INTXNS:
+        row = []
+        for loci in itx:
+            gcnum = 0
+        
+            start  = loci
+            stop = loci + INTXN_LEN
+        
+            st = seq[start:stop].upper()
+            stList = list(st)
+        
+            # make the alphabet - not sure if I should just have constant alphabet
+            #alphabet = list(Set(stList))
+            freqList = []
+            for symbol in alphabet:
+                ctr = 0
+                for sym in stList:
+                    if sym == symbol:
+                        ctr += 1
+                freqList.append(float(ctr) / len(stList))
+
+            ent = 0.0
+        
+            for freq in freqList:
+                freq = max(freq,eps)
+                ent = ent + freq * math.log(freq, 2)
+            ent = -ent
+        
+            # normalize
+            ent_max = math.log(len(freqList), 2)
+            ent = ent/ent_max
+        
+            row.append(str(ent))  
+        rows.append(row)
+    
+    # write to file    
+    out_fn = OUT_PATH + 'repeat/' + CELLTYPE + '.' + CHRO + '.txt'
+    query = 'entropy'
+    labels = [query + '_0', query + '_1']
+    write_data_to_file(out_fn, labels, rows)
+    
+    return    
+    
 
 if __name__ == '__main__':
   start = datetime.datetime.now()
