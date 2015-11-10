@@ -3,7 +3,7 @@
 # Max Shen
 
 import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse
-import numpy as np
+# import numpy as np
 import operator
 from collections import defaultdict
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
@@ -24,9 +24,10 @@ def main():
 
   # celltypes = ['IMR90', 'GM12878', 'K562']
   celltypes = ['K562']
-  chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', \
-          '12', '13', '14', '15', '16', '17', '18', '19', '20', \
-          '21', '22', 'X']
+  # chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', \
+          # '12', '13', '14', '15', '16', '17', '18', '19', '20', \
+          # '21', '22', 'X']
+  chrs = ['9']
 
   for ct in celltypes:
     for chro in chrs:
