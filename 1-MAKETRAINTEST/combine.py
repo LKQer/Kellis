@@ -15,23 +15,24 @@ def main():
   global ADD_LABELS
 
   name = sys.argv[1]
-  cell_types = ['IMR90']
-  chros = ['1']
+  cell_types = ['IMR90', 'GM12878', 'K562']
+  chros = ['1', '2', '3', '4', '5', '6', '7', '8']
 
-  common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/' + name
-  MTT_FOLD = common_fold + 'traintest/'
+  common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
+  MTT_FOLD = common_fold + 'traintest/' + name + '/'
   out_path = common_fold + 'combined/' + name + '/'
-  INP_PATH = common_fold + 'fgbg/'
+  INP_PATH = common_fold + 'fgbg/' + name + '/'
   ensure_dir_exists(out_path)
 
-  # Ensure out file exists and is empty for appending
-  OUT_FN = out_path + 'data.txt'
-  OUT_Y_FN = out_path + '.y.txt'
-  prepare_OUT_FN(OUT_FN)
-  prepare_OUT_FN(OUT_Y_FN)
-  ADD_LABELS = True
 
   for cell_type in cell_types:
+    # Ensure out file exists and is empty for appending
+    OUT_FN = out_path + 'data.' + cell_type + '.txt'
+    OUT_Y_FN = out_path + 'y.' + cell_type + '.txt'
+    prepare_OUT_FN(OUT_FN)
+    prepare_OUT_FN(OUT_Y_FN)
+    ADD_LABELS = True
+
     for chro in chros:
       print cell_type, chro
       num_f = add_features(cell_type, chro)

@@ -11,19 +11,19 @@
 # Includes lots of magic numbers reflecting internal organization of featurized data
 # Max Shen
 
-import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse
+import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse, math
 import numpy as np
 from collections import defaultdict
+from sets import Set
+
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
 from lib import *
 
 OUT_PATH = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/traintest/'
-
 INTXN_LEN = 5000
 WOUTER_STEP = 200
 NUM_CHROMHMM_STATES = 18            # VALID:  15, 18 or 25
 CURR_BED_FN = ''
-
 _E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 
 def main():
@@ -36,21 +36,29 @@ def main():
 
   # EDIT 
   for inp_fn in os.listdir(inp_fold):
-    INTXNS(inp_fold + inp_fn)
+    print inp_fold, inp_fn
+    get_INTXNS(inp_fold + inp_fn)
+    if CHRO not in ['1', '2', '3', '4', '5', '6', '7', '8']:
+      continue
+    if CELLTYPE == 'K562' and CHRO == '8':
+      continue
+    if CELLTYPE == 'GM12878' and CHRO == '2':
+      continue
     print 'Processing', CELLTYPE, CHRO
+    print datetime.datetime.now()
 
+    get_basic()
+    get_gc()
+    get_entropy()
     get_motifs()
     get_chromHMM()
     get_TFs()
     get_all_narrowpeak()
     get_wgbs()
-    get_gc()
-    get_entropy()
-    get_basic()
 
   return
 
-def INTXNS(inp_fn):
+def get_INTXNS(inp_fn):
   # Grabs interactions from the output of fgbg.py.
   # Format = Locus1 Locus2 IntxnFraction
   global INTXNS
@@ -85,12 +93,11 @@ def get_basic():
   print '  Basic...'
   rows = []
   for itx in INTXNS:
-    rows.append([abs(itx[0] - itx[1])])
-
-  for row in rows:
+    row = []
+    row.append(str(abs(itx[0] - itx[1])))
     row.append(CELLTYPE)
     row.append(CHRO)
-  rows = ['\t'.join(row) for row in rows]
+    rows.append(row)
 
   labels = ['basic_genomic_dist', 'basic_celltype', 'basic_chromosome']
 
@@ -302,7 +309,12 @@ def get_wgbs():
   print '  wgbs...'
   write_bed()
   base_path = '/broad/compbio/maxwshen/data/wgbs/'
-  curr_fn = base_path + E_CELLTYPE + '_WGBS_FractionalMethylation.bigwig'
+
+  if CELLTYPE == 'IMR90':
+    type_data = 'WGBS'
+  else:
+    type_data = 'RRBS'
+  curr_fn = base_path + E_CELLTYPE + '_' + type_data + '_FractionalMethylation.bigwig'
   ensure_dir_exists(OUT_PATH + 'wgbs')
   ch_out_fn = OUT_PATH + 'wgbs/' + CELLTYPE + '.' + CHRO + '.pre.txt'
 
@@ -360,6 +372,7 @@ def get_gc():
         rows.append(row)
     
     # write to file    
+    ensure_dir_exists(OUT_PATH + 'gc/')
     out_fn = OUT_PATH + 'gc/' + CELLTYPE + '.' + CHRO + '.txt'
     query = 'gc'
     labels = [query + '_0', query + '_1']
@@ -416,6 +429,7 @@ def get_entropy():
         rows.append(row)
     
     # write to file    
+    ensure_dir_exists(OUT_PATH + 'repeat/')
     out_fn = OUT_PATH + 'repeat/' + CELLTYPE + '.' + CHRO + '.txt'
     query = 'entropy'
     labels = [query + '_0', query + '_1']
@@ -423,6 +437,17 @@ def get_entropy():
     
     return    
     
+
+def readSeq(filename):
+    """reads in a FASTA sequence"""
+
+    stream = open(filename)
+    seq = []
+    for line in stream:
+        if line.startswith(">"):
+            continue
+        seq.append(line.rstrip())
+    return "".join(seq)    
 
 if __name__ == '__main__':
   start = datetime.datetime.now()
