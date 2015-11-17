@@ -23,6 +23,7 @@ dists <- data.frame(dat.all[,"basic_genomic_dist"])
 
 # Remove uninformative features
 blacklist <- c("basic_chromosome", "basic_celltype")
+dat.blacklist <- dat.all[, which(names(dat.all) %in% blacklist)]
 dat.all <- dat.all[ , -which(names(dat.all) %in% blacklist)]
 
 # Remove 0-variance columns from the data
@@ -40,14 +41,12 @@ train_ind <- sample(seq_len(nrow(dat.all)), size = tr_size)
 
 dat.train <- dat.all[train_ind, ]
 dat.test <- dat.all[-train_ind, ]
-y.train_bin <- y.bin[train_ind, ]
-y.test_bin <- y.bin[-train_ind, ]
+y.train_bin <- factor(y.bin[train_ind, ])
+y.test_bin <- factor(y.bin[-train_ind, ])
 
-cat('Ratio of Training Data that is Foreground:', sum(train["Labels"] > 1) / dim(train)[1], '\n')
-cat('Ratio of Testing Data that is Foreground', sum(test["Labels"] > 1) / dim(test)[1], '\n')
 
 # Build Random Forest model
-rf <- randomForest(dat.train, y = y.train_bin, xtest = dat.test, ytest = y.test_bin, do.trace = 1, ntree = 3000)
+rf <- randomForest(dat.train, y = y.train_bin, xtest = dat.test, ytest = y.test_bin, do.trace = 1, ntree = 151, keep.forest = TRUE)
 rfp <- (rf$test$predicted > 1)
 cat('Error Rate', sum(y.test_bin != rfp))
-save(rf, file = 'rf.iter3000.RData')
+save(rf, file = 'rf.iter151.RData')

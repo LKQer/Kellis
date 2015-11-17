@@ -1,4 +1,4 @@
-import sys, string, datetime, random, copy, os, commands, fnmatch, re
+import sys, string, datetime, random, copy, os, commands, fnmatch, re, csv
 from collections import defaultdict
 import numpy as np
 
@@ -97,3 +97,30 @@ def reverse_complement(inp):
 def ensure_dir_exists(directory):
   if not os.path.exists(directory):
     os.makedirs(directory)
+  return
+
+def read_delimited_txt(inp_fn, dlm):
+  # Reads in a text file with the given delimiter, like '\t'
+  print 'Reading in', inp_fn, '...'
+  with open(inp_fn) as f:
+    reader = csv.reader(f, delimiter = dlm)
+    d = list(reader)
+  return d
+
+def normalize_0_1(data):
+  # Normalizes column-wise so that all values are between 0 and 1
+  # Necessary preprocessing for a deep belief network
+  data = np.transpose(data)
+  print len(data), len(data[0])
+  print '  0-1 normalizing data...'
+  for i in range(len(data)):
+    row = [float(s) for s in data[i]]
+    if i % 100 == 0:
+      print '  ', i, datetime.datetime.now()
+    new_row = []
+    (minr, maxr) = (min(row), max(row))
+    for j in range(len(row)):
+      new_row.append((row[j] - minr)/(maxr - minr))
+    data[i] = new_row
+  data = np.transpose(data)
+  return data
