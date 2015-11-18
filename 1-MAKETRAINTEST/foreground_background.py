@@ -31,18 +31,19 @@ def main():
   BG_MIN = 0.5
   BG_MAX = 1.5
   TEST_FRAC = 0.1         # Percent of test split
-  AUGMENT_LIMIT = 5       # Limit on augmentation-fold for intxns
+  AUGMENT_LIMIT = 40       # Limit on augmentation-fold for intxns
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]
   OUT_PATH = OUT_PATH + name + '/'
 
   # celltypes = ['IMR90', 'GM12878', 'K562']
+  # No chr9 (missing data), chr X
+  chrs = ['22', '21', '20', '19', '18', '17', '16', '15', '14', \
+          '13', '12', '11', '10', '8', '7', '6', '5', \
+          '4', '3', '2', '1']
   celltypes = ['K562']
-  # chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '10', '11', \
-          # '12', '13', '14', '15', '16', '17', '18', '19', '20', \
-          # '21', '22', 'X']
-  chrs = ['22']
+  # chrs = ['22']
 
   for ct in celltypes:
     for chro in chrs:
@@ -53,6 +54,7 @@ def main():
       find_fgbg(datapath, name)
 
   return
+
 
 def find_fgbg(datapath, name):
   print '  Reading Hi-C intxn file...'
@@ -78,6 +80,7 @@ def find_fgbg(datapath, name):
   write_file('test', test, intxns)
   return
   
+
 def write_file(typ, keys, intxns):
   # type is either 'train' or 'test'
   # Also mirrors the interactions
@@ -90,6 +93,7 @@ def write_file(typ, keys, intxns):
       f.write(key.split()[1] + ' ' + key.split()[0] + '\t' + str(intxns[key]) + '\n')
   print 'Written to', out_fn
   return
+
 
 def training_test_split(high, low):
   # Randomly grab TEST_FRAC from both high and low
@@ -104,6 +108,7 @@ def training_test_split(high, low):
   train += low[ int(len(low) * TEST_FRAC) : ]
   return train, test
 
+
 def convert_to_loci(keys):
   # keys is a list of space-delimited strings with 2 components
   # loci is a set of strings
@@ -113,10 +118,12 @@ def convert_to_loci(keys):
     loci.add(itx.split()[1])
   return loci
 
+
 def loci_match(itx, loci):
   # itx is a space-delimited string with 2 components
   # loci is a list of strings
   return itx.split()[0] in loci or itx.split()[1] in loci
+
 
 def count_loci_enrich(typ, keys):
   # Want to ensure some loci are not overrepresented compared to others
@@ -185,8 +192,6 @@ def augment(train, test, intxns, ordered_keys):
 
   train_loci = convert_to_loci(train)
   test_loci = convert_to_loci(test)
-  train_counter = {key: 0 for key in train_loci}
-  test_counter = {key: 0 for key in test_loci}
 
   # pdb.set_trace()
 
@@ -194,6 +199,8 @@ def augment(train, test, intxns, ordered_keys):
   add_to_test = []
 
   print '    Background...'
+  train_counter = {key: 0 for key in train_loci}
+  test_counter = {key: 0 for key in test_loci}
   for i in range(len(ordered_keys)):
     ok = ordered_keys[i]
     if intxns[ok] < BG_MIN:
@@ -204,12 +211,12 @@ def augment(train, test, intxns, ordered_keys):
       add_to_train.append(ok)
     if test_augment(ok, 'test', train_loci, test_loci, train_counter, test_counter):
       add_to_test.append(ok)
-  print len(add_to_train), len(add_to_test)
-
-  train_counter = {key: 0 for key in train_loci}
-  test_counter = {key: 0 for key in test_loci}
+  print '      -BG-  Train:', len(add_to_train), '  Test:', len(add_to_test)
+  print '      Train Enrichment (avg, min, max):', np.mean(train_counter.values()), min(train_counter.values()), max(train_counter.values())
 
   print '    Foreground...'
+  train_counter = {key: 0 for key in train_loci}
+  test_counter = {key: 0 for key in test_loci}
   for i in range(len(ordered_keys) - 1, 0, -1):
     ok = ordered_keys[i]
     if intxns[ok] < FG_MIN:
@@ -218,18 +225,23 @@ def augment(train, test, intxns, ordered_keys):
       add_to_train.append(ok)
     if test_augment(ok, 'test', train_loci, test_loci, train_counter, test_counter):
       add_to_test.append(ok)
-  print len(add_to_train), len(add_to_test)
+  print '      -FG+BG-  Train:', len(add_to_train), '  Test:', len(add_to_test)
+  print '      Train Enrichment (avg, min, max):', np.mean(train_counter.values()), min(train_counter.values()), max(train_counter.values())
 
   # It is possible that we added two intxns that link fg/bg
   # Example: Train is 1, test is 2. We have a new intxn 1-3 and 2-3.
   # To avoid this, we remove overlap among the augmented sets
   # This also guarantees that training and test are completely separate.
-  # We remove from test set b/c we prefer training set to be larger.
+  # We remove from test set b/c we prefer training set to be larger.  
   cleanup_loci = convert_to_loci(add_to_train)
-  print '  Filtering augmentation...', len(add_to_test)
+  print '    Filtering test augment...'
   add_to_test = [s for s in add_to_test if not loci_match(s, cleanup_loci)]
-  print '  Done Filtering.\n  Final Test Augmentation:', len(add_to_test)
-  print '  Final Train Augmentation:', len(add_to_train)
+
+  print '    Distance matching training...'
+  add_to_train = distance_match_augment(add_to_train, intxns)
+
+  print '    Final Train Augmentation:', len(add_to_train)
+  print '    Final Test Augmentation:', len(add_to_test)
 
   count_loci_enrich('train', add_to_train)
   count_loci_enrich('test', add_to_test)
@@ -238,8 +250,38 @@ def augment(train, test, intxns, ordered_keys):
 
   return train, test
 
+
+def distance_match_augment(add_to_train, intxns):
+  # Distance matches fg/bg in training augment
+  fg = []
+  bg = []
+  keep_fg = []
+  keep_bg = []
+
+
+  for itx in add_to_train:
+    if intxns[itx] > BG_MAX:
+      fg.append(itx)
+    else:
+      bg.append(itx)
+
+  fg_dists = defaultdict(list)
+  for key in fg:
+    fg_dists[get_dist(key)].append(key)
+
+  for key in bg:
+    dist = get_dist(key)
+    if dist in fg_dists and len(fg_dists[dist]) > 0:
+      keep_fg.append(fg_dists[dist][0])
+      fg_dists[dist] = fg_dists[dist][1:]
+      keep_bg.append(key)
+
+  return keep_fg + keep_bg
+
+
 def get_dist(key):
   return abs(int(key.split()[1]) - int(key.split()[0]))
+
 
 def filter_match_distances(intxns, ordered_keys):
   # Finds the top _NUM intxns within MAX_DIST and matches (if possible) 1-to-1
@@ -287,6 +329,7 @@ def filter_match_distances(intxns, ordered_keys):
       break
       # sys.exit(0)
   return high, low
+
 
 
 if __name__ == '__main__':

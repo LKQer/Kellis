@@ -29,8 +29,9 @@ _E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 def main():
   global OUT_PATH
   name = sys.argv[1]
-  inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/' + name + '/'
-  OUT_PATH = OUT_PATH + name + '/'
+  typ = sys.argv[2]
+  inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/' + name + '/' + typ + '/'
+  OUT_PATH = OUT_PATH + name + '/' + typ + '/'
 
   ensure_dir_exists(OUT_PATH + 'temp/')
 
@@ -39,10 +40,6 @@ def main():
     print inp_fold, inp_fn
     get_INTXNS(inp_fold + inp_fn)
     if CHRO not in ['1', '2', '3', '4', '5', '6', '7', '8']:
-      continue
-    if CELLTYPE == 'K562' and CHRO == '8':
-      continue
-    if CELLTYPE == 'GM12878' and CHRO == '2':
       continue
     print 'Processing', CELLTYPE, CHRO
     print datetime.datetime.now()
