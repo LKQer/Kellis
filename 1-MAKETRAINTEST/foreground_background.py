@@ -3,8 +3,8 @@
 # Max Shen
 
 import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse
-import pdb
-# import numpy as np
+import pdb, pickle
+import numpy as np
 import operator
 from collections import defaultdict
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
@@ -23,23 +23,26 @@ def main():
   global FG_MIN
   global CHRO
   global CELLTYPE
+  global AUGMENT_LIMIT
   _NUM = 500             # Find this many of each set (foreground, background)
   MAX_DIST = 1500000      # maximum intxn distance to pull
   LIMIT = float('inf')    # No early stopping
   FG_MIN = 10
-  BG_MIN, BGMAX = (0.5, 1.5)
+  BG_MIN = 0.5
+  BG_MAX = 1.5
   TEST_FRAC = 0.1         # Percent of test split
+  AUGMENT_LIMIT = 5       # Limit on augmentation-fold for intxns
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]
   OUT_PATH = OUT_PATH + name + '/'
 
-  celltypes = ['IMR90', 'GM12878', 'K562']
-  # celltypes = ['K562']
-  chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '10', '11', \
-          '12', '13', '14', '15', '16', '17', '18', '19', '20', \
-          '21', '22', 'X']
-  # chrs = ['22']
+  # celltypes = ['IMR90', 'GM12878', 'K562']
+  celltypes = ['K562']
+  # chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '10', '11', \
+          # '12', '13', '14', '15', '16', '17', '18', '19', '20', \
+          # '21', '22', 'X']
+  chrs = ['22']
 
   for ct in celltypes:
     for chro in chrs:
@@ -52,12 +55,13 @@ def main():
   return
 
 def find_fgbg(datapath, name):
+  print '  Reading Hi-C intxn file...'
   intxns = dict()
   with open(datapath.path) as f:
     for i, line in enumerate(f):
       pass
       if i % 6000000 == 0:
-        print i, datetime.datetime.now()
+        print '    ', i, datetime.datetime.now()
       if i > LIMIT:
         break
       words = line.split()
@@ -68,34 +72,45 @@ def find_fgbg(datapath, name):
   # low = ordered_keys[:_NUM]
   high, low = filter_match_distances(intxns, ordered_keys)
   train, test = training_test_split(high, low)
-  train, test = augment(train, test, intxns)
+  train, test = augment(train, test, intxns, ordered_keys)
 
-  ensure_dir_exists(OUT_PATH)
-  out_fn = OUT_PATH + datapath.celltype + '.' + datapath.chro + '.txt'
-  with open(out_fn, 'w') as f:
-    f.write('> ' + ' '.join([datapath.celltype, datapath.chro, str(LIMIT)]) + '\n')
-    for key in high:
-      f.write(key + '\t' + str(intxns[key]) + '\n')
-    for key in low:
-      f.write(key + '\t' + str(intxns[key]) + '\n')
-  print 'Written to', out_fn
+  write_file('train', train, intxns)
+  write_file('test', test, intxns)
   return
   
+def write_file(typ, keys, intxns):
+  # type is either 'train' or 'test'
+  # Also mirrors the interactions
+  ensure_dir_exists(OUT_PATH)
+  out_fn = OUT_PATH + typ + '.' + CELLTYPE + '.' + CHRO + '.txt'
+  with open(out_fn, 'w') as f:
+    f.write('>  ' + ' '.join([CELLTYPE, CHRO, str(LIMIT)]) + '\n')
+    for key in keys:
+      f.write(key + '\t' + str(intxns[key]) + '\n')
+      f.write(key.split()[1] + ' ' + key.split()[0] + '\t' + str(intxns[key]) + '\n')
+  print 'Written to', out_fn
+  return
+
 def training_test_split(high, low):
+  # Randomly grab TEST_FRAC from both high and low
+  print '  Splitting into training/testing sets...'
   random.shuffle(high)
   random.shuffle(low)
   test = []
-  test += high[ : len(high) * TEST_FRAC]
-  test += low[ : len(low) * TEST_FRAC]
+  test += high[ : int(len(high) * TEST_FRAC)]
+  test += low[ : int(len(low) * TEST_FRAC)]
   train = []
-  train += high[len(high) * TEST_FRAC : ]
-  train += low[ len(low) * TEST_FRAC : ]
+  train += high[int(len(high) * TEST_FRAC) : ]
+  train += low[ int(len(low) * TEST_FRAC) : ]
   return train, test
 
 def convert_to_loci(keys):
-  loci = []
+  # keys is a list of space-delimited strings with 2 components
+  # loci is a set of strings
+  loci = set()
   for itx in keys:
-    loci += itx.split()
+    loci.add(itx.split()[0])
+    loci.add(itx.split()[1])
   return loci
 
 def loci_match(itx, loci):
@@ -103,39 +118,121 @@ def loci_match(itx, loci):
   # loci is a list of strings
   return itx.split()[0] in loci or itx.split()[1] in loci
 
+def count_loci_enrich(typ, keys):
+  # Want to ensure some loci are not overrepresented compared to others
+  # Takes in a list of space-delimited strings (keys)
+  # Builds a dictionary counting occurences of loci
+  counter = dict()
+  for k in keys:
+    loci = k.split()
+    for locus in loci:
+      if locus not in counter:
+        counter[locus] = 0
+      counter[locus] += 1
+
+  with open('ex' + typ + '.txt', 'w') as f:
+    for key in counter:
+      f.write(key + ' ' + str(counter[key]) + '\n')
+  return
+
+def test_augment(ok, typ, train_loci, test_loci, train_counter, test_counter):
+  # Tests to see if intxn 'ok' can enter the augment set for 'typ'
+  # In particular, ensures that we don't pass AUGMENT_LIMIT
+  passes = False
+  if typ == 'train':
+    if loci_match(ok, train_loci) and not loci_match(ok, test_loci):
+      for locus in ok.split():
+        if locus in train_counter:
+          if train_counter[locus] > AUGMENT_LIMIT - 1:
+            return False
+      passes = True
+  if typ == 'test':
+    if loci_match(ok, test_loci) and not loci_match(ok, train_loci):
+      for locus in ok.split():
+        if locus in test_counter:
+          if test_counter[locus] > AUGMENT_LIMIT - 1:
+            return False
+      passes = True
+
+  if not passes:
+    return False
+  if passes:
+    if typ == 'train':
+      for locus in ok.split():
+        if locus in train_counter:
+          train_counter[locus] += 1
+        else:
+          train_counter[locus] = 1
+    if typ == 'test':
+      for locus in ok.split():
+        if locus in test_counter:
+          test_counter[locus] += 1
+        else:
+          test_counter[locus] = 1
+  return True 
+
+
 def augment(train, test, intxns, ordered_keys):
+  # Find interactions within foreground and background sets that
+  # overlap with interactions in training and test. 
+  # Expands training and test sets.
+  # Note: There are many loci that are involved in both foreground and background intxns
+  #   As a result, for example, foreground only will saturate all 
+  #   loci found in both fg/bg.
+  print '  Augmenting...'
+  count_loci_enrich('trainpre', train)
+  count_loci_enrich('testpre', test)
+
   train_loci = convert_to_loci(train)
   test_loci = convert_to_loci(test)
+  train_counter = {key: 0 for key in train_loci}
+  test_counter = {key: 0 for key in test_loci}
+
+  # pdb.set_trace()
 
   add_to_train = []
   add_to_test = []
 
+  print '    Background...'
   for i in range(len(ordered_keys)):
-    ok = ordered_keys[i]
-    if intxns[ok] < FG_MIN:
-      break
-    if loci_match(ok, train_loci) and not loci_match(ok, test_loci):
-      add_to_train.append(ok)
-    if loci_match(ok, test_loci) and not loci_match(ok, train_loci):
-      add_to_test.append(ok)
-
-  for i in range(len(ordered_keys) - 1, 0, -1):
     ok = ordered_keys[i]
     if intxns[ok] < BG_MIN:
       continue
     if intxns[ok] > BG_MAX:
       break
-    if loci_match(ok, train_loci) and not loci_match(ok, test_loci):
+    if test_augment(ok, 'train', train_loci, test_loci, train_counter, test_counter):
       add_to_train.append(ok)
-    if loci_match(ok, test_loci) and not loci_match(ok, train_loci):
+    if test_augment(ok, 'test', train_loci, test_loci, train_counter, test_counter):
       add_to_test.append(ok)
+  print len(add_to_train), len(add_to_test)
+
+  train_counter = {key: 0 for key in train_loci}
+  test_counter = {key: 0 for key in test_loci}
+
+  print '    Foreground...'
+  for i in range(len(ordered_keys) - 1, 0, -1):
+    ok = ordered_keys[i]
+    if intxns[ok] < FG_MIN:
+      break
+    if test_augment(ok, 'train', train_loci, test_loci, train_counter, test_counter):
+      add_to_train.append(ok)
+    if test_augment(ok, 'test', train_loci, test_loci, train_counter, test_counter):
+      add_to_test.append(ok)
+  print len(add_to_train), len(add_to_test)
 
   # It is possible that we added two intxns that link fg/bg
   # Example: Train is 1, test is 2. We have a new intxn 1-3 and 2-3.
   # To avoid this, we remove overlap among the augmented sets
+  # This also guarantees that training and test are completely separate.
+  # We remove from test set b/c we prefer training set to be larger.
   cleanup_loci = convert_to_loci(add_to_train)
+  print '  Filtering augmentation...', len(add_to_test)
   add_to_test = [s for s in add_to_test if not loci_match(s, cleanup_loci)]
+  print '  Done Filtering.\n  Final Test Augmentation:', len(add_to_test)
+  print '  Final Train Augmentation:', len(add_to_train)
 
+  count_loci_enrich('train', add_to_train)
+  count_loci_enrich('test', add_to_test)
   train += add_to_train
   test += add_to_test
 
@@ -144,11 +241,12 @@ def augment(train, test, intxns, ordered_keys):
 def get_dist(key):
   return abs(int(key.split()[1]) - int(key.split()[0]))
 
-def filter_match_distances(intxns, ordered_keys, datapath):
+def filter_match_distances(intxns, ordered_keys):
   # Finds the top _NUM intxns within MAX_DIST and matches (if possible) 1-to-1
   # between foreground and background
-
+  # Also ensures foreground and background sets are within the set range
   # Store keys in high, and store their dists
+  print '  Building fg/bg by matching distances...'
   high = []
   dists = []
   high_loci = []
