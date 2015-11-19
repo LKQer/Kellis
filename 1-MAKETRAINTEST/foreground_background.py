@@ -147,6 +147,8 @@ def test_augment(ok, typ, train_loci, test_loci, train_counter, test_counter):
   # Tests to see if intxn 'ok' can enter the augment set for 'typ'
   # In particular, ensures that we don't pass AUGMENT_LIMIT
   passes = False
+  if get_dist(ok) > MAX_DIST:
+    return False
   if typ == 'train':
     if loci_match(ok, train_loci) and not loci_match(ok, test_loci):
       for locus in ok.split():
