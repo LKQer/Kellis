@@ -37,9 +37,15 @@ def main():
 
   # EDIT 
   for inp_fn in os.listdir(inp_fold):
-    print inp_fold, inp_fn
+    print inp_fold + inp_fn
     get_INTXNS(inp_fold + inp_fn)
-    if CHRO not in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    # if CHRO not in ['1', '2', '3', '4', '5']:
+      # continue
+    # if CHRO not in ['6', '7', '8', '9', '10', '11', '12']:
+      # continue
+    # if CHRO not in ['13', '14', '15', '16', '17', '18', '19', '20', '21']:
+      # continue
+    if CHRO not in ['22']:
       continue
     print 'Processing', CELLTYPE, CHRO
     print datetime.datetime.now()

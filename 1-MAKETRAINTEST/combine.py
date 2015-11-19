@@ -1,7 +1,7 @@
 # Combines features produced by maketraintest.py 
 # into a single data matrix text file
 
-import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse
+import sys, string, datetime, random, copy, os, commands, fnmatch, re, argparse, pdb
 import numpy as np
 from collections import defaultdict
 sys.path.append('/broad/compbio/maxwshen/Kellis/util')
@@ -13,15 +13,20 @@ def main():
   global OUT_FN
   global OUT_Y_FN
   global ADD_LABELS
+  global TYP
 
   name = sys.argv[1]
-  cell_types = ['IMR90', 'GM12878', 'K562']
-  chros = ['1', '2', '3', '4', '5', '6', '7', '8']
+  TYP = sys.argv[2]
+  # cell_types = ['IMR90', 'GM12878', 'K562']
+  cell_types = ['IMR90', 'K562']
+  chros = ['1', '2', '3', '4', '5', '6', '7', '8', \
+          '10', '11', '12', '13', '14', '15', '16', '17', \
+          '18', '19', '20', '21', '22']
 
   common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
-  MTT_FOLD = common_fold + 'traintest/' + name + '/'
-  out_path = common_fold + 'combined/' + name + '/'
-  INP_PATH = common_fold + 'fgbg/' + name + '/'
+  MTT_FOLD = common_fold + 'traintest/' + name + '/' + TYP + '/'
+  out_path = common_fold + 'combined/' + name + '/' + TYP + '/'
+  INP_PATH = common_fold + 'fgbg/' + name + '/' + TYP + '/'
   ensure_dir_exists(out_path)
 
 
@@ -45,7 +50,7 @@ def main():
   return
 
 def add_y(cell_type, chro):
-  curr_fn = INP_PATH + cell_type + '.' + chro + '.txt'
+  curr_fn = INP_PATH + TYP + '.' + cell_type + '.' + chro + '.txt'
   ys = []
   with open(curr_fn) as f:
     for i, line in enumerate(f):
@@ -75,12 +80,13 @@ def add_features(cell_type, chro):
   data = []   # List of columns
   for subdir in [MTT_FOLD + s + '/' for s in os.listdir(MTT_FOLD) if os.path.isdir(MTT_FOLD + s)]:
     for seek_fn in os.listdir(subdir):
-      if fnmatch.fnmatch(seek_fn, cell_type + '.' + chro + '*.txt'):
+      if fnmatch.fnmatch(seek_fn, cell_type + '.' + chro + '.*txt'):
         data = data_add(data, subdir + seek_fn)
 
   print 'Found', len(data), 'features/columns'
   data_rows = []
   for i in range(len(data[0])):
+    # pdb.set_trace()
     data_rows.append([data[j][i] for j in range(len(data))])
 
   if not ADD_LABELS:
