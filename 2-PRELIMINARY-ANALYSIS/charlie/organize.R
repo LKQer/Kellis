@@ -1,5 +1,3 @@
-library(clusterSim)
-library(randomForest)
 
 read_data <- function(typ, dy) {
   ct <- list()
@@ -67,7 +65,27 @@ save(dat, file = 'dat.RData')
 save(y, file = 'y.RData')
 
 # Build Random Forest model
-rf <- randomForest(dat$train$all, y = y$train$bin, xtest = dat$test$all, ytest = y$test$bin, do.trace = 1, ntree = 45, keep.forest = TRUE)
+library(randomForest)
+rf <- randomForest(dat$train$all, y = y$train$bin, xtest = dat$test$all, ytest = y$test$bin, do.trace = 1, ntree = 31, keep.forest = TRUE)
 rfp <- (rf$test$predicted > 1)
 cat('Error Rate', sum(y.test_bin != rfp))
 save(rf, file = 'rf.iter151.RData')
+
+
+# GLMNET
+library(glmnet)
+ytrainallfixed <- as.vector(sapply(y$train$all, as.numeric))
+datfixed <- as.matrix(dat$train$all)
+glm <- glmnet(datfixed, ytrainallfixed)
+# do not know how to interpret...
+
+# Using nn
+library(neuralnet)
+# Converts into a vector of numerics
+ytrainallfixed <- as.vector(sapply(y$train$all, as.numeric))
+datfixed <- as.matrix(dat$train$all)
+testn <- data.frame(cbind(ytrainallfixed, datfixed))
+n <- names(testn)
+f <- as.formula(paste('ytrainallfixed ~', paste(n[!n %in% 'ytrainallfixed'], collapse = ' + ')))
+nn <- neuralnet(f, data = testn, hidden = c(10, 5), linear.fit = T)
+

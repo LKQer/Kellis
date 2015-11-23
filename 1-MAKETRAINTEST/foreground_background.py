@@ -24,14 +24,14 @@ def main():
   global CHRO
   global CELLTYPE
   global AUGMENT_LIMIT
-  _NUM = 500             # Find this many of each set (foreground, background)
-  MAX_DIST = 1500000      # maximum intxn distance to pull
+  _NUM = 100             # Find this many of each set (foreground, background)
+  MAX_DIST = 1000000      # maximum intxn distance to pull
   LIMIT = float('inf')    # No early stopping
-  FG_MIN = 10
-  BG_MIN = 0.5
-  BG_MAX = 1.5
+  FG_MIN = 50
+  BG_MIN = -1
+  BG_MAX = 1
   TEST_FRAC = 0.1         # Percent of test split
-  AUGMENT_LIMIT = 40       # Limit on augmentation-fold for intxns
+  AUGMENT_LIMIT = 10       # Limit on augmentation-fold for intxns
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]
@@ -42,9 +42,9 @@ def main():
   # chrs = ['22', '21', '20', '19', '18', '17', '16', '15', '14', \
           # '13', '12', '11', '10', '8', '7', '6', '5', \
           # '4', '3', '2', '1']
-  chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-  celltypes = ['GM12878']
-  # chrs = ['22']
+  # chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+  celltypes = ['IMR90', 'K562']
+  chrs = ['5', '6']
 
   for ct in celltypes:
     for chro in chrs:
@@ -73,20 +73,24 @@ def find_fgbg(datapath, name):
   ordered_keys = sorted(intxns, key = intxns.get)
   # high = ordered_keys[-_NUM:]
   # low = ordered_keys[:_NUM]
+
+  # Used to find independent intxns within each chromosomes
   high, low = filter_match_distances(intxns, ordered_keys)
   train, test = training_test_split(high, low)
   train, test = augment(train, test, intxns, ordered_keys)
 
+  ensure_dir_exists(OUT_PATH + '/train')
+  ensure_dir_exists(OUT_PATH + '/test')
   write_file('train', train, intxns)
   write_file('test', test, intxns)
+
   return
   
 
 def write_file(typ, keys, intxns):
   # type is either 'train' or 'test'
   # Also mirrors the interactions
-  ensure_dir_exists(OUT_PATH)
-  out_fn = OUT_PATH + typ + '.' + CELLTYPE + '.' + CHRO + '.txt'
+  out_fn = OUT_PATH + '/' + typ + '/' + CELLTYPE + '.' + CHRO + '.txt'
   with open(out_fn, 'w') as f:
     f.write('>  ' + ' '.join([CELLTYPE, CHRO, str(LIMIT)]) + '\n')
     for key in keys:
@@ -239,6 +243,7 @@ def augment(train, test, intxns, ordered_keys):
   cleanup_loci = convert_to_loci(add_to_train)
   print '    Filtering test augment...'
   add_to_test = [s for s in add_to_test if not loci_match(s, cleanup_loci)]
+  add_to_test = balance_fg_bg(add_to_test, intxns)
 
   print '    Distance matching training...'
   add_to_train = distance_match_augment(add_to_train, intxns)
@@ -280,6 +285,19 @@ def distance_match_augment(add_to_train, intxns):
       keep_bg.append(key)
 
   return keep_fg + keep_bg
+
+
+def balance_fg_bg(add_to_test, intxns):
+  # Ensures fg and bg are balanced in the test set
+  fg = []
+  bg = []
+  for itx in add_to_test:
+    if intxns[itx] > BG_MAX:
+      fg.append(itx)
+    else:
+      bg.append(itx)
+  take = min(len(fg), len(bg))
+  return fg[:take] + bg[:take]
 
 
 def get_dist(key):
@@ -327,7 +345,7 @@ def filter_match_distances(intxns, ordered_keys):
       # Ensures we meet _NUM intxns      
       break
     if intxns[ok] > BG_MAX:
-      print 'ERROR: Insufficient number of background', CELLTYPE, CHRO, '_NUM:', len(high), 'found:', len(low), 'processed:', i
+      print 'ERROR: Insufficient number of background', CELLTYPE, CHRO, '_NUM:', _NUM, 'found:', len(low), 'processed:', i
       print 'Suggested to restart fgbg with lower _NUM parameter'
       break
       # sys.exit(0)
