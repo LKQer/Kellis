@@ -1,4 +1,5 @@
 
+library(gtools)
 read_data <- function(typ, dy) {
   ct <- list()
   ct$imr90 <- read.table(paste('/broad/compbio/maxwshen/data/1-MAKETRAINTEST/combined/charlie/', typ, '/', dy, '.IMR90.txt', sep=''), header = TRUE)
@@ -7,7 +8,7 @@ read_data <- function(typ, dy) {
 }
 
 merge_data <- function(dat) {
-  m <- merge(dat$imr90, dat$k562, all = TRUE)
+  m <- smartbind(dat$imr90, dat$k562)
   m <- m[,colSums(is.na(m)) == 0]
   return(m)
 }
@@ -23,6 +24,7 @@ blacklist <- function(dat) {
   blacklist <- c("basic_chromosome", "basic_celltype")
   dat$bl <- dat$all[, which(names(dat$all) %in% blacklist)]
   dat$all <- dat$all[ , -which(names(dat$all) %in% blacklist)]
+  dat$bl$basic_genomic_dist <- dat$all$basic_genomic_dist
   return(dat)
 }
 
@@ -63,6 +65,13 @@ dat <- normalize(dat)
 
 save(dat, file = 'dat.RData')
 save(y, file = 'y.RData')
+write.table(dat$train$all, file = 'charlie.data.train.txt',sep = '\t')
+write.table(dat$test$all, file = 'charlie.data.test.txt',sep = '\t')
+write.table(y$train$all, file = 'charlie.y.train.all.txt',sep = '\t')
+write.table(y$train$bin, file = 'charlie.y.train.bin.txt',sep = '\t')
+write.table(y$test$all, file = 'charlie.y.test.all.txt',sep = '\t')
+write.table(y$test$bin, file = 'charlie.y.test.bin.txt',sep = '\t')
+
 
 # Build Random Forest model
 library(randomForest)

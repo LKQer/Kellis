@@ -15,12 +15,14 @@ def main():
   global ADD_LABELS
 
   name = sys.argv[1]
-  # cell_types = ['IMR90', 'GM12878', 'K562']
-  cell_types = ['IMR90', 'K562']
+  cell_types = ['IMR90', 'GM12878', 'K562']
+  # cell_types = ['IMR90', 'K562']
   # chros = ['1', '2', '3', '4', '5', '6', '7', '8', \
+  chros = ['1', '2', '3', '8', \
           # '10', '11', '12', '13', '14', '15', '16', '17', \
-          # '18', '19', '20', '21', '22']
-  chros = ['18', '19']
+          '10', '11', '12', '16', '17', \
+          '18', '19', '20', '21', '22']
+  # chros = ['18', '19']
 
   common_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/'
   MTT_FOLD = common_fold + 'traintest/' + name + '/'

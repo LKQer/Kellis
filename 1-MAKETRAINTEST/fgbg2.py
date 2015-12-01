@@ -25,22 +25,26 @@ def main():
   _NUM = float('inf')     # Find this many of each set (foreground, background)
   MAX_DIST = 1000000      # maximum intxn distance to pull
   LIMIT = float('inf')    # No early stopping
-  FG_MIN = 8
+  FG_MIN = 15
   BG_MIN = -1
-  BG_MAX = 0.4
+  BG_MAX = 0.6
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]
+  celltype = sys.argv[2]
+  cnum = sys.argv[3]
   OUT_PATH = OUT_PATH + name + '/'
 
+  celltypes = [celltype]
   # celltypes = ['IMR90', 'GM12878', 'K562']
   # No chr9 (missing data), chr X
   # chrs = ['22', '21', '20', '19', '18', '17', '16', '15', '14', \
           # '13', '12', '11', '10', '8', '7', '6', '5', \
           # '4', '3', '2', '1']
   # chrs = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-  celltypes = ['IMR90', 'K562']
-  chrs = ['19', '18']
+  chros = [['1', '2', '3', '4', '5', '6', '7'], ['8', '10', '11', '12', '13', '14', '15'], ['16', '17', '18', '19', '20', '21', '22']]
+  # celltypes = ['IMR90', 'K562']
+  chrs = chros[int(cnum)]
 
   for ct in celltypes:
     for chro in chrs:
@@ -59,7 +63,7 @@ def find_fgbg(datapath, name):
   with open(datapath.path) as f:
     for i, line in enumerate(f):
       pass
-      if i % 1000000 == 0:
+      if i % 6000000 == 0:
         print '    ', i, datetime.datetime.now()
       if i > LIMIT:
         break
@@ -155,18 +159,14 @@ def filter_match_distances(intxns, ordered_keys):
       # sys.exit(0)
 
   low = []
-  low_loci = []
   for i in range(len(ordered_keys)):
     ok = ordered_keys[i]
     dist = get_dist(ok)
-    if intxns[ok] < BG_MIN:
-      continue
     if dist in dists:
       # Find an intxn that is unique to all fg/bg intxns so far
       # matches a distance in foreground 1-to-1
       dists.remove(dist)
       low.append(ok)
-      low_loci += ok.split()
     if len(dists) == 0:
       # Ensures we meet _NUM intxns      
       break

@@ -29,23 +29,33 @@ _E = {'IMR90': 'E017', 'GM12878': 'E116', 'K562': 'E123'}
 def main():
   global OUT_PATH
   name = sys.argv[1]
+  cchro = sys.argv[2]
+  # cct = sys.argv[3]
   inp_fold = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/fgbg/' + name + '/'
   OUT_PATH = OUT_PATH + name + '/'
 
   ensure_dir_exists(OUT_PATH + 'temp/')
 
+  chrs = [['1'], ['2', '3'], ['4', '5'], ['6', '7'], ['8', '10'], ['11', '12'], ['13', '14'], ['15', '16'], ['17', '18'], ['19', '20'], ['21', '22']]
+
   # EDIT 
   for inp_fn in os.listdir(inp_fold):
     print inp_fold + inp_fn
-    get_INTXNS(inp_fold + inp_fn)
-    # if CHRO not in ['1', '2', '3', '4', '5']:
-      # continue
-    # if CHRO not in ['6', '7', '8', '9', '10', '11', '12']:
-      # continue
-    # if CHRO not in ['13', '14', '15', '16', '17', '18', '19', '20', '21']:
-      # continue
-    if CHRO not in ['19']:
+    curr_chro = inp_fn.split('.')[1]
+    curr_ct = inp_fn.split('.')[0]
+    if curr_chro not in chrs[int(cchro)]:
       continue
+    # if curr_ct not in [cct]:
+      # continue
+    get_INTXNS(inp_fold + inp_fn)
+    # if CHRO not in ['4', '5', '6', '7', '8', '10']:
+      # continue
+    # if CHRO not in ['11', '12', '13', '14', '15', '16']:
+      # continue
+    # if CHRO not in ['17', '18', '19', '20', '21', '22']:
+      # continue
+    # if CHRO not in ['19']:
+      # continue
     print 'Processing', CELLTYPE, CHRO
     print datetime.datetime.now()
 
