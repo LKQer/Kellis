@@ -25,9 +25,9 @@ def main():
   _NUM = float('inf')     # Find this many of each set (foreground, background)
   MAX_DIST = 1000000      # maximum intxn distance to pull
   LIMIT = float('inf')    # No early stopping
-  FG_MIN = 15
+  FG_MIN = 30.22
   BG_MIN = -1
-  BG_MAX = 0.6
+  BG_MAX = 2.2
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]

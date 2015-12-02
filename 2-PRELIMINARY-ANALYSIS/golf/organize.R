@@ -51,6 +51,10 @@ normalize <- function(dat) {
   return(dat)
 }
 
+# Data preparation Functions
+# ------------------------------------------------------------------------------
+# Data prep
+
 dat <- list()
 y <- list()
 dat <- read_data('data')
@@ -72,10 +76,23 @@ y$gm12878 <- y$bin[dat$bl$basic_celltype == 'GM12878']
 save(dat, file = 'dat.RData')
 save(y, file = 'y.RData')
 
+# Loading
+load('dat.RData')
+load('y.RData')
+
+# Data preparation
+# ------------------------------------------------------------------------------
+# Analysis
+
 # Test different datasets: Cell Types
-# train_ind <- (dat$bl$basic_chromosome == '18')
-test_ind <- (dat$bl$basic_celltype == 'K562')
+distances <- (dat$bl$basic_genomic_dist > 800000) & (dat$bl$basic_genomic_dist < 10000000)
+test_ind <- (dat$bl$basic_chromosome == '1')
+# test_ind <- (dat$bl$basic_celltype == 'GM12878')
+# test_ind <- (dat$bl$basic_celltype == 'K562')
+# test_ind <- (dat$bl$basic_celltype == 'IMR90')
 train_ind <- !test_ind
+test_ind <- test_ind & distances
+train_ind <- train_ind & distances
 newdat <- list()
 newy <- list()
 newdat$train$all <- dat$all[train_ind,]
@@ -84,13 +101,10 @@ newy$train$bin <- y$bin[train_ind]
 newy$test$bin <- y$bin[test_ind]
 newy$train$all <- y$all[train_ind,]
 
-# Loading
-load('dat.RData')
-load('y.RData')
 
 # Random Forest
 library(randomForest)
-rf <- randomForest(newdat$train$all, y = newy$train$bin, xtest = newdat$test$all, ytest = newy$test$bin, do.trace = 1, ntree = 5, keep.forest = TRUE)
+rf <- randomForest(newdat$train$all, y = newy$train$bin, xtest = newdat$test$all, ytest = newy$test$bin, do.trace = 1, ntree = 21, keep.forest = TRUE)
 save(rf, file = 'rf.iter151.RData')
 
 
@@ -125,11 +139,15 @@ dev.off()
 # Histogram
 p1 <- hist(dat$bl$basic_genomic_dist[y$all > 1])
 p2 <- hist(dat$bl$basic_genomic_dist[y$all < 1])
-pdf('echo.hist.pdf')
+pdf('golf.hist.pdf')
 plot(p1, col=rgb(0, 0, 1, 1/2))
 plot(p2, col=rgb(1, 0, 0, 1/2), add=T)
 legend("topleft", c("Foreground", "Background"), col=c("blue", "red"), lwd=10)
 dev.off()
+
+# Analysis
+# ------------------------------------------------------------------------------
+# ETC
 
 # GLMNET
 library(glmnet)
