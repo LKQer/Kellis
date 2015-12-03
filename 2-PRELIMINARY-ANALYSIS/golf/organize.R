@@ -85,21 +85,35 @@ load('y.RData')
 # Analysis
 
 # Test different datasets: Cell Types
-distances <- (dat$bl$basic_genomic_dist > 800000) & (dat$bl$basic_genomic_dist < 10000000)
-test_ind <- (dat$bl$basic_chromosome == '1')
-# test_ind <- (dat$bl$basic_celltype == 'GM12878')
+distances <- (dat$bl$basic_genomic_dist > 0) & (dat$bl$basic_genomic_dist < 10000000)
 # test_ind <- (dat$bl$basic_celltype == 'K562')
-# test_ind <- (dat$bl$basic_celltype == 'IMR90')
-train_ind <- !test_ind
+# train_ind <- (dat$bl$basic_celltype != 'K562' & dat$bl$basic_chromosome != '1')
+# valid_ind <- (dat$bl$basic_celltype != 'K562' & dat$bl$basic_chromosome == '1')
+test_ind <- (dat$bl$basic_chromosome == '1')
+train_ind <- (dat$bl$basic_chromosome != '1' & dat$bl$basic_chromosome != '3')
+valid_ind <- (dat$bl$basic_chromosome != '1' & dat$bl$basic_chromosome == '3')
 test_ind <- test_ind & distances
 train_ind <- train_ind & distances
 newdat <- list()
 newy <- list()
 newdat$train$all <- dat$all[train_ind,]
 newdat$test$all <- dat$all[test_ind,]
+newdat$valid$all <- dat$all[valid_ind,]
 newy$train$bin <- y$bin[train_ind]
 newy$test$bin <- y$bin[test_ind]
+newy$valid$bin <- y$bin[valid_ind]
 newy$train$all <- y$all[train_ind,]
+
+sum(test_ind); sum(train_ind); sum(valid_ind)
+
+# Write.table to file
+idd <- 'B'
+write.table(newdat$train$all, file = paste(idd, '.train.dat.txt', sep = ''), sep='\t')
+write.table(newy$train$bin, file = paste(idd, '.train.y.txt', sep = ''), sep='\t')
+write.table(newdat$test$all, file = paste(idd, '.test.dat.txt', sep = ''), sep='\t')
+write.table(newy$test$bin, file = paste(idd, '.test.y.txt', sep = ''), sep='\t')
+write.table(newdat$valid$all, file = paste(idd, '.valid.dat.txt', sep = ''), sep='\t')
+write.table(newy$valid$bin, file = paste(idd, '.valid.y.txt', sep = ''), sep='\t')
 
 
 # Random Forest

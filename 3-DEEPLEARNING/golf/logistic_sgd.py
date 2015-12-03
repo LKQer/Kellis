@@ -45,6 +45,8 @@ import numpy
 import theano
 import theano.tensor as T
 
+sys.path.append('/broad/compbio/maxwshen/Kellis/util')
+from lib import *
 
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class
@@ -168,45 +170,45 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
+def readin(data_id, typ, data_path):
+  dat = read_delimited_txt(data_path + data_id + '.' + typ + '.dat.txt', '\t')
+  dat = np.asarray(get_names_trim(dat))
+  y = read_delimited_txt(data_path + data_id + '.' + typ + '.y.txt', '\t')
+  y = np.asarray(convert_TF_to_num(get_names_trim(y)))
+  return (dat, y)
 
-def load_data(dataset):
-    ''' Loads the dataset
+def convert_TF_to_num(nparr):
+    for i in range(len(nparr)):
+        for j in range(len(nparr[0])):
+            if nparr[i][j] == 'FALSE':
+                nparr[i][j] = 0
+            if nparr[i][j] == 'TRUE':
+                nparr[i][j] = 1
+    return nparr
 
-    :type dataset: string
-    :param dataset: the path to the dataset (here MNIST)
+def get_names_trim(dat):
+  names = dat[0]
+  dat = dat[1:]
+  for i in range(len(dat)):
+    dat[i] = dat[i][1:]
+  return dat
+
+
+def load_data(data_path):
+    ''' Max Custom
     '''
 
-    #############
-    # LOAD DATA #
-    #############
+    data_id = 'B'
 
-    # Download the MNIST dataset if it is not present
-    data_dir, data_file = os.path.split(dataset)
-    if data_dir == "" and not os.path.isfile(dataset):
-        # Check if dataset is in the data directory.
-        new_path = os.path.join(
-            os.path.split(__file__)[0],
-            "..",
-            "data",
-            dataset
-        )
-        if os.path.isfile(new_path) or data_file == 'mnist.pkl.gz':
-            dataset = new_path
-
-    if (not os.path.isfile(dataset)) and data_file == 'mnist.pkl.gz':
-        import urllib
-        origin = (
-            'http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz'
-        )
-        print 'Downloading data from %s' % origin
-        urllib.urlretrieve(origin, dataset)
-
-    print '... loading data'
+    print 'train...', datetime.datetime.now()
+    train_set = readin(data_id, 'train', data_path)
+    print 'valid...', datetime.datetime.now()
+    valid_set = readin(data_id, 'valid', data_path)
+    print 'test...', datetime.datetime.now()
+    test_set = readin(data_id, 'test', data_path)
 
     # Load the dataset
-    f = gzip.open(dataset, 'rb')
-    train_set, valid_set, test_set = cPickle.load(f)
-    f.close()
+    # train_set, valid_set, test_set = cPickle.load(open(dataset))
     #train_set, valid_set, test_set format: tuple(input, target)
     #input is an numpy.ndarray of 2 dimensions (a matrix)
     #witch row's correspond to an example. target is a
@@ -242,6 +244,10 @@ def load_data(dataset):
     test_set_x, test_set_y = shared_dataset(test_set)
     valid_set_x, valid_set_y = shared_dataset(valid_set)
     train_set_x, train_set_y = shared_dataset(train_set)
+
+    # test_set_x, test_set_y = (test_set[0], test_set[1])
+    # valid_set_x, valid_set_y = (valid_set[0], valid_set[1])
+    # train_set_x, train_set_y = (train_set[0], train_set[1])
 
     rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y),
             (test_set_x, test_set_y)]

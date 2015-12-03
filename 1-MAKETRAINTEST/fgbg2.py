@@ -25,9 +25,9 @@ def main():
   _NUM = float('inf')     # Find this many of each set (foreground, background)
   MAX_DIST = 1000000      # maximum intxn distance to pull
   LIMIT = float('inf')    # No early stopping
-  FG_MIN = 30.22
-  BG_MIN = -1
-  BG_MAX = 2.2
+  FG_MIN = 31
+  BG_MIN = 8
+  BG_MAX = 14
 
   # Using NATO phonetic alphabet
   name = sys.argv[1]
@@ -161,6 +161,8 @@ def filter_match_distances(intxns, ordered_keys):
   low = []
   for i in range(len(ordered_keys)):
     ok = ordered_keys[i]
+    if intxns[ok] < BG_MIN:
+      continue
     dist = get_dist(ok)
     if dist in dists:
       # Find an intxn that is unique to all fg/bg intxns so far

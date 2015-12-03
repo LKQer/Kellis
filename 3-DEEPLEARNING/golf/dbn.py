@@ -15,6 +15,15 @@ from mlp import HiddenLayer
 from rbm import RBM
 
 
+def main():
+    ''' Max
+    '''
+
+    data_path = '/broad/compbio/maxwshen/data/1-MAKETRAINTEST/complete/golf/'
+    test_DBN(dataset = data_path, pretraining_epochs = 10, training_epochs = 20)
+
+    return
+
 # start-snippet-1
 class DBN(object):
     """Deep Belief Network
@@ -278,7 +287,7 @@ class DBN(object):
 
 def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
              pretrain_lr=0.01, k=1, training_epochs=1000,
-             dataset='mnist.pkl.gz', batch_size=10):
+             dataset='', batch_size=10):
     """
     Demonstrates how to train and test a Deep Belief Network.
 
@@ -300,6 +309,10 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     :param batch_size: the size of a minibatch
     """
 
+    if dataset == '':
+        print 'ERROR: No dataset specified'
+        sys.exit(0)
+
     datasets = load_data(dataset)
 
     train_set_x, train_set_y = datasets[0]
@@ -313,9 +326,9 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     numpy_rng = numpy.random.RandomState(123)
     print '... building the model'
     # construct the Deep Belief Network
-    dbn = DBN(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 1000, 1000],
-              n_outs=10)
+    dbn = DBN(numpy_rng = numpy_rng, n_ins = 471,
+              hidden_layers_sizes = [1000],
+              n_outs = 2)
 
     # start-snippet-2
     #########################
@@ -439,4 +452,4 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
 
 
 if __name__ == '__main__':
-    test_DBN()
+    main()
